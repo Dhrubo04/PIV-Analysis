@@ -263,7 +263,7 @@ class PIVGUIApp:
 
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title(f"PIVlab Python v{PIVAnalyzer().version}")
+        self.root.title(f"PIV Dhrubo v{PIVAnalyzer().version}")
         self.root.geometry("1200x800")
 
         self.piv_analyzer = PIVAnalyzer()
@@ -300,7 +300,7 @@ class PIVGUIApp:
         ttk.Label(control_frame, text="Window Size:").pack(anchor='w')
         self.window_size_var = tk.StringVar(value="64")
         window_size_combo = ttk.Combobox(control_frame, textvariable=self.window_size_var,
-                                         values=["32", "64", "128"], state="readonly")
+                                         values=["8","16", "32", "64", "128"], state="readonly")
         window_size_combo.pack(fill='x', pady=2)
 
         # Overlap
@@ -376,7 +376,7 @@ class PIVGUIApp:
         """Load first frame"""
         filename = filedialog.askopenfilename(
             title="Select Frame 1",
-            filetypes=[("Image files", "*.png *.jpg *.jpeg *.tiff *.bmp")]
+            filetypes=[("Image files", "*.png *.jpg *.jpeg *.tiff *.tif *.bmp")]
         )
         if filename:
             self.frame1 = cv2.imread(filename)
@@ -387,7 +387,7 @@ class PIVGUIApp:
         """Load second frame"""
         filename = filedialog.askopenfilename(
             title="Select Frame 2",
-            filetypes=[("Image files", "*.png *.jpg *.jpeg *.tiff *.bmp")]
+            filetypes=[("Image files", "*.png *.jpg *.jpeg *.tiff *.tif *.bmp")]
         )
         if filename:
             self.frame2 = cv2.imread(filename)
@@ -462,7 +462,7 @@ class PIVGUIApp:
             self.status_var.set("Analysis failed")
 
     def show_vector_field(self):
-        """Display vector field with vortex locations"""
+        """Display vector field with vortex locations overlayed on original image"""
         if self.results is None:
             messagebox.showwarning("Warning", "No results to display")
             return
@@ -470,26 +470,38 @@ class PIVGUIApp:
         self.fig.clear()
         ax = self.fig.add_subplot(111)
 
-        # Plot vector field
+        # Convert frame1 to RGB for matplotlib
+        frame1_rgb = cv2.cvtColor(self.frame1, cv2.COLOR_BGR2RGB)
+        ax.imshow(frame1_rgb)
+
+        # Extract results
         X, Y, U, V = self.results['X'], self.results['Y'], self.results['U'], self.results['V']
+        vortex_centers = self.results['vortex_centers']
+        vortex_types = self.results['vortex_types']
+        vortex_strengths = self.results['vortex_strengths']
 
         # Subsample for cleaner display
         skip = max(1, len(X[0]) // 20)
         ax.quiver(X[::skip, ::skip], Y[::skip, ::skip],
                   U[::skip, ::skip], V[::skip, ::skip],
-                  scale=50, alpha=0.7, color='blue')
+                  scale=50, color='yellow', alpha=0.9)
 
         # Plot vortex centers
-        for i, (x, y) in enumerate(self.results['vortex_centers']):
-            color = 'red' if self.results['vortex_types'][i] == 'CW' else 'green'
-            strength = self.results['vortex_strengths'][i]
+        for i, (x, y) in enumerate(vortex_centers):
+            color = 'red' if vortex_types[i] == 'CW' else 'green'
+            strength = vortex_strengths[i]
             circle = Circle((x, y), radius=strength*20,
                             fill=False, color=color, linewidth=2)
             ax.add_patch(circle)
-            ax.text(x, y, self.results['vortex_types'][i],
+            ax.text(x, y, vortex_types[i],
                     ha='center', va='center', fontsize=8, color=color)
 
-        ax.set_title('Vector Field with Vortex Locations')
+        # Calculate average flow velocity
+        mag = np.sqrt(U**2 + V**2)
+        mean_velocity = np.mean(mag)
+        self.status_var.set(f"Vector field shown. Mean velocity: {mean_velocity:.2f} units/s")
+
+        ax.set_title('Vector Field on Original Frame')
         ax.set_xlabel('X (pixels)')
         ax.set_ylabel('Y (pixels)')
         ax.set_aspect('equal')
@@ -497,6 +509,7 @@ class PIVGUIApp:
 
         self.fig.tight_layout()
         self.canvas.draw()
+
 
     def show_vorticity(self):
         """Display vorticity field"""
@@ -530,27 +543,33 @@ class PIVGUIApp:
         self.canvas.draw()
 
     def show_streamlines(self):
-        """Display streamlines"""
+        """Display streamlines overlayed on original image"""
         if self.results is None:
             messagebox.showwarning("Warning", "No results to display")
             return
-
         self.fig.clear()
         ax = self.fig.add_subplot(111)
 
+        # Show original image (frame 1) as background
+        frame1_rgb = cv2.cvtColor(self.frame1, cv2.COLOR_BGR2RGB)
+        ax.imshow(frame1_rgb)
+
+        # Get results
         X, Y, U, V = self.results['X'], self.results['Y'], self.results['U'], self.results['V']
+        vortex_centers = self.results['vortex_centers']
+        vortex_types = self.results['vortex_types']
 
-        # Create streamlines
-        ax.streamplot(X, Y, U, V, density=2, color='blue', alpha=0.7)
+        # Streamplot (no subsampling needed here)
+        ax.streamplot(X, Y, U, V, density=2, color='cyan', linewidth=1.5, arrowsize=1)
 
-        # Plot vortex centers
-        for i, (x, y) in enumerate(self.results['vortex_centers']):
-            color = 'red' if self.results['vortex_types'][i] == 'CW' else 'green'
+        # Mark vortex centers
+        for i, (x, y) in enumerate(vortex_centers):
+            color = 'red' if vortex_types[i] == 'CW' else 'green'
             ax.plot(x, y, 'o', color=color, markersize=10)
-            ax.text(x, y+20, self.results['vortex_types'][i],
+            ax.text(x, y+20, vortex_types[i],
                     ha='center', va='bottom', fontsize=10, color=color)
 
-        ax.set_title('Streamlines with Vortex Locations')
+        ax.set_title('Streamlines on Original Frame')
         ax.set_xlabel('X (pixels)')
         ax.set_ylabel('Y (pixels)')
         ax.set_aspect('equal')
@@ -558,6 +577,7 @@ class PIVGUIApp:
 
         self.fig.tight_layout()
         self.canvas.draw()
+
 
     def export_results(self):
         """Export analysis results"""
