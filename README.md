@@ -62,7 +62,7 @@ PIV is widely used in **aerodynamics**, **microfluidics**, **biomedical flows**,
 
 > *(Replace with real screenshots of your GUI)*
 
-![GUI Preview](https://via.placeholder.com/1000x600.png?text=GUI+Interface)
+![GUI Preview](./gui_screenshot.png)
 > Full control panel with frame loading, PIV settings, vortex options, and output export.
 
 ---
