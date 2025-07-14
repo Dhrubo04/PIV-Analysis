@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 """
-PIVlab Python - Digital Particle Image Velocimetry Tool
+Particle Image Velocimetry Analyzer Tool
 A Python implementation inspired by PIVlab MATLAB tool
-Analyzes two frames to generate vector maps and locate vortices
 
 Features:
-- Cross-correlation based PIV analysis
-- Sub-pixel accuracy using Gaussian fitting
 - Vector field visualization
 - Vortex detection and localization
 - Streamline plotting
-- Comprehensive post-processing filters
 
-Author: Python implementation of PIVlab concepts
-Original PIVlab by Dr. William Thielicke and Prof. Dr. Eize J. Stamhuis
+Developer: Dhrubo Ghosh
+
 """
-
+# Library
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
@@ -31,7 +27,7 @@ import os
 import sys
 from pathlib import Path
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -40,11 +36,11 @@ class PIVAnalyzer:
     def __init__(self):
         self.version = "1.0"
         self.window_size = 64
-        self.overlap = 0.5
+        # self.overlap = 0.5
         self.search_area = 128
         self.subpixel_method = 'gaussian'
-        self.dt = 1.0  # time step between frames
-        self.scale = 1.0  # pixels per unit
+        self.dt = 1.0
+        self.scale = 1.0
 
     def preprocess_image(self, image):
         """Preprocess image for PIV analysis"""
@@ -158,15 +154,22 @@ class PIVAnalyzer:
         img2 = self.preprocess_image(frame2)
 
         # Calculate grid parameters
-        step = int(self.window_size * (1 - self.overlap))
+        step = int(self.window_size * 0.5)
 
-        # Create coordinate grids
+
+    # Create coordinate grids
         x_coords = np.arange(self.window_size // 2,
                              img1.shape[1] - self.window_size // 2, step)
         y_coords = np.arange(self.window_size // 2,
                              img1.shape[0] - self.window_size // 2, step)
 
-        # Prepare window pairs for analysis
+        import time
+        start = time.time()
+        # your analysis
+        print("Elapsed:", time.time() - start)
+
+
+# Prepare window pairs for analysis
         window_pairs = []
         for i, y in enumerate(y_coords):
             for j, x in enumerate(x_coords):
@@ -182,7 +185,7 @@ class PIVAnalyzer:
 
         # Parallel processing
         try:
-            with ProcessPoolExecutor(max_workers=mp.cpu_count()) as executor:
+            with ThreadPoolExecutor(max_workers=mp.cpu_count()) as executor:
                 results = list(executor.map(self.analyze_window_pair, window_pairs))
         except:
             # Fallback to serial processing
@@ -304,11 +307,11 @@ class PIVGUIApp:
         window_size_combo.pack(fill='x', pady=2)
 
         # Overlap
-        ttk.Label(control_frame, text="Overlap:").pack(anchor='w')
-        self.overlap_var = tk.DoubleVar(value=0.5)
-        overlap_scale = ttk.Scale(control_frame, from_=0.0, to=0.8,
-                                  variable=self.overlap_var, orient='horizontal')
-        overlap_scale.pack(fill='x', pady=2)
+        # ttk.Label(control_frame, text="Overlap:").pack(anchor='w')
+        # self.overlap_var = tk.DoubleVar(value=0.5)
+        # overlap_scale = ttk.Scale(control_frame, from_=0.0, to=0.8,
+        #                           variable=self.overlap_var, orient='horizontal')
+        # overlap_scale.pack(fill='x', pady=2)
 
         # Time step
         ttk.Label(control_frame, text="Time Step (dt):").pack(anchor='w')
@@ -376,23 +379,56 @@ class PIVGUIApp:
         """Load first frame"""
         filename = filedialog.askopenfilename(
             title="Select Frame 1",
-            filetypes=[("Image files", "*.png *.jpg *.jpeg *.tiff *.tif *.bmp")]
+            filetypes=[("Image files", "*.png *.jpg *.jpeg *.tiff *.bmp *.tif")]
         )
         if filename:
             self.frame1 = cv2.imread(filename)
             self.status_var.set("Frame 1 loaded")
-            self.display_frame_preview()
+            self.display_loaded_frames()
+
 
     def load_frame2(self):
         """Load second frame"""
         filename = filedialog.askopenfilename(
             title="Select Frame 2",
-            filetypes=[("Image files", "*.png *.jpg *.jpeg *.tiff *.tif *.bmp")]
+            filetypes=[("Image files", "*.png *.jpg *.jpeg *.tiff *.bmp *.tif")]
         )
         if filename:
             self.frame2 = cv2.imread(filename)
             self.status_var.set("Frame 2 loaded")
-            self.display_frame_preview()
+            self.display_loaded_frames()
+
+    def display_loaded_frames(self):
+        """Display one or both loaded frames"""
+        self.fig.clear()
+
+        if self.frame1 is not None and self.frame2 is not None:
+            ax1 = self.fig.add_subplot(121)
+            ax2 = self.fig.add_subplot(122)
+
+            ax1.imshow(cv2.cvtColor(self.frame1, cv2.COLOR_BGR2RGB))
+            ax1.set_title("Frame 1")
+            ax1.axis('off')
+
+            ax2.imshow(cv2.cvtColor(self.frame2, cv2.COLOR_BGR2RGB))
+            ax2.set_title("Frame 2")
+            ax2.axis('off')
+
+        elif self.frame1 is not None:
+            ax = self.fig.add_subplot(111)
+            ax.imshow(cv2.cvtColor(self.frame1, cv2.COLOR_BGR2RGB))
+            ax.set_title("Frame 1")
+            ax.axis('off')
+
+        elif self.frame2 is not None:
+            ax = self.fig.add_subplot(111)
+            ax.imshow(cv2.cvtColor(self.frame2, cv2.COLOR_BGR2RGB))
+            ax.set_title("Frame 2")
+            ax.axis('off')
+
+        self.fig.tight_layout()
+        self.canvas.draw()
+
 
     def display_frame_preview(self):
         """Display frame preview"""
@@ -425,7 +461,7 @@ class PIVGUIApp:
 
         # Update analyzer parameters
         self.piv_analyzer.window_size = int(self.window_size_var.get())
-        self.piv_analyzer.overlap = self.overlap_var.get()
+        # self.piv_analyzer.overlap = self.overlap_var.get()
         self.piv_analyzer.dt = self.dt_var.get()
         self.piv_analyzer.scale = self.scale_var.get()
 
@@ -437,6 +473,14 @@ class PIVGUIApp:
         try:
             # Perform PIV analysis
             X, Y, U, V, SNR = self.piv_analyzer.analyze_frames(self.frame1, self.frame2)
+
+            # Mean velocity magnitude
+            mean_velocity = np.mean(np.sqrt(U**2 + V**2))
+
+            # Mean direction (in degrees, 0° is right, 90° is up)
+            mean_angle_rad = np.arctan2(np.mean(V), np.mean(U))
+            mean_direction_deg = np.degrees(mean_angle_rad)
+
 
             # Calculate vorticity
             vorticity = self.vortex_detector.calculate_vorticity(X, Y, U, V)
@@ -455,6 +499,10 @@ class PIVGUIApp:
             }
 
             self.status_var.set(f"Analysis complete. Found {len(vortex_centers)} vortices")
+            self.status_var.set(f"✔ Analysis complete: {len(vortex_centers)} vortices | "
+                                f"Mean Velocity = {mean_velocity:.2f} px/s | "
+                                f"Direction = {mean_direction_deg:.1f}°")
+
             self.show_vector_field()
 
         except Exception as e:
@@ -501,7 +549,7 @@ class PIVGUIApp:
         mean_velocity = np.mean(mag)
         self.status_var.set(f"Vector field shown. Mean velocity: {mean_velocity:.2f} units/s")
 
-        ax.set_title('Vector Field on Original Frame')
+        ax.set_title('Vector Field')
         ax.set_xlabel('X (pixels)')
         ax.set_ylabel('Y (pixels)')
         ax.set_aspect('equal')
@@ -569,7 +617,7 @@ class PIVGUIApp:
             ax.text(x, y+20, vortex_types[i],
                     ha='center', va='bottom', fontsize=10, color=color)
 
-        ax.set_title('Streamlines on Original Frame')
+        ax.set_title('Streamlines')
         ax.set_xlabel('X (pixels)')
         ax.set_ylabel('Y (pixels)')
         ax.set_aspect('equal')
@@ -587,8 +635,11 @@ class PIVGUIApp:
 
         filename = filedialog.asksaveasfilename(
             title="Export Results",
-            defaultextension=".npz",
-            filetypes=[("NumPy files", "*.npz"), ("CSV files", "*.csv")]
+            filetypes=[
+                ("NumPy Archive (.npz)", "*.npz"),
+                ("CSV File (.csv)", "*.csv"),
+                ("JPEG Image (.jpg)", "*.jpg")
+            ]
         )
 
         if filename:
@@ -600,6 +651,9 @@ class PIVGUIApp:
                 data = np.column_stack([X.ravel(), Y.ravel(), U.ravel(), V.ravel()])
                 np.savetxt(filename, data, delimiter=',',
                            header='X,Y,U,V', comments='')
+            elif filename.endswith('.jpg'):
+                self.fig.savefig(filename, format='jpg', dpi=300)
+
 
             self.status_var.set("Results exported")
 
@@ -610,17 +664,14 @@ class PIVGUIApp:
 def main():
     """Main entry point"""
     print("=" * 60)
-    print("PIVlab Python - Digital Particle Image Velocimetry Tool")
+    print("PIV Analyzer Dhrubo  - Digital Particle Image Velocimetry Tool")
     print("=" * 60)
-    print("Version: 1.0")
+    # print("Version: 1.0")
     print("Features:")
     print("- Cross-correlation based PIV analysis")
-    print("- Sub-pixel accuracy with Gaussian fitting")
     print("- Automatic vortex detection and classification")
     print("- Vector field visualization")
     print("- Streamline plotting")
-    print("- Multi-core processing support")
-    print("=" * 60)
 
     # Check dependencies
     try:
