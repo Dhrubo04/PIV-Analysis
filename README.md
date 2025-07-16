@@ -1,4 +1,4 @@
-# 🧪 PIV Analyzer - Dhrubo Ghosh
+# 🧪 PIV Analyzer
 
 **A high-performance Python GUI tool for Particle Image Velocimetry (PIV) analysis, vortex detection, and vector field visualization.**
 
@@ -79,6 +79,7 @@ PIV is widely used in **aerodynamics**, **microfluidics**, **biomedical flows**,
 
 🎯 *Ensure bright, crisp particle images without motion blur.*
 
+## Developed by Dhrubo
 ---
 
 ## 📦 Installation
