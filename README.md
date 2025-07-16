@@ -85,7 +85,8 @@ PIV is widely used in **aerodynamics**, **microfluidics**, **biomedical flows**,
 
 ### 🔧 Requirements
 
+**Developed by Dhrubo
+
 ```bash
 pip install numpy opencv-python matplotlib scipy pillow
 
-**Developed by Dhrubo
