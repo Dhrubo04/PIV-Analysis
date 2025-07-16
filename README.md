@@ -79,7 +79,6 @@ PIV is widely used in **aerodynamics**, **microfluidics**, **biomedical flows**,
 
 🎯 *Ensure bright, crisp particle images without motion blur.*
 
-## Developed by Dhrubo
 ---
 
 ## 📦 Installation
@@ -88,3 +87,5 @@ PIV is widely used in **aerodynamics**, **microfluidics**, **biomedical flows**,
 
 ```bash
 pip install numpy opencv-python matplotlib scipy pillow
+
+**Developed by Dhrubo
